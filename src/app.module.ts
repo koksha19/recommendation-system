@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ContentModule } from './content/content.module';
 import { RatingsModule } from './ratings/ratings.module';
+import { MathModule } from './common/math/math.module';
 
 @Module({
     imports: [
@@ -27,6 +28,8 @@ import { RatingsModule } from './ratings/ratings.module';
         ContentModule,
 
         RatingsModule,
+
+        MathModule,
     ],
     controllers: [AppController],
     providers: [AppService],
