@@ -5,14 +5,14 @@ export type MovieDocument = Movie & Document;
 
 @Schema()
 export class Movie {
-    @Prop({ required: true, unique: true })
-    movieId: number;
+  @Prop({ required: true, unique: true })
+  movieId: number;
 
-    @Prop({ required: true })
-    title: string;
+  @Prop({ required: true })
+  title: string;
 
-    @Prop([String])
-    genres: string[];
+  @Prop([String])
+  genres: string[];
 }
 
 export const MovieSchema = SchemaFactory.createForClass(Movie);

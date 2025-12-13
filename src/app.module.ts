@@ -9,29 +9,29 @@ import { RatingsModule } from './ratings/ratings.module';
 import { MathModule } from './common/math/math.module';
 
 @Module({
-    imports: [
-        ConfigModule.forRoot({
-            isGlobal: true,
-            envFilePath: '.env',
-        }),
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
 
-        MongooseModule.forRootAsync({
-            imports: [ConfigModule],
-            useFactory: async (configService: ConfigService) => ({
-                uri: configService.get<string>('MONGO_URI'),
-            }),
-            inject: [ConfigService],
-        }),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGO_URI'),
+      }),
+      inject: [ConfigService],
+    }),
 
-        UsersModule,
+    UsersModule,
 
-        ContentModule,
+    ContentModule,
 
-        RatingsModule,
+    RatingsModule,
 
-        MathModule,
-    ],
-    controllers: [AppController],
-    providers: [AppService],
+    MathModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

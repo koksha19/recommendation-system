@@ -5,17 +5,17 @@ export type RatingDocument = Rating & Document;
 
 @Schema({ timestamps: true })
 export class Rating {
-    @Prop({ required: true })
-    userId: number;
+  @Prop({ required: true })
+  userId: number;
 
-    @Prop({ required: true })
-    movieId: number;
+  @Prop({ required: true })
+  movieId: number;
 
-    @Prop({ required: true })
-    rating: number;
+  @Prop({ required: true })
+  rating: number;
 
-    @Prop()
-    timestamp: number;
+  @Prop()
+  timestamp: number;
 }
 
 export const RatingSchema = SchemaFactory.createForClass(Rating);

@@ -6,11 +6,11 @@ import { ContentController } from './content.controller';
 import { Movie, MovieSchema } from './schemas/movie.schema';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{ name: Movie.name, schema: MovieSchema }]),
-    ],
-    controllers: [ContentController],
-    providers: [ContentService],
-    exports: [ContentService],
+  imports: [
+    MongooseModule.forFeature([{ name: Movie.name, schema: MovieSchema }]),
+  ],
+  controllers: [ContentController],
+  providers: [ContentService],
+  exports: [ContentService],
 })
 export class ContentModule {}

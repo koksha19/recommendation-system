@@ -7,50 +7,50 @@ import { SearchMovieDto, MovieResponseDto } from './dto/movie.dto';
 
 @Injectable()
 export class ContentService {
-    constructor(
-        @InjectModel(Movie.name) private movieModel: Model<MovieDocument>,
-    ) {}
+  constructor(
+    @InjectModel(Movie.name) private movieModel: Model<MovieDocument>,
+  ) {}
 
-    public async findOne(movieId: number): Promise<MovieResponseDto> {
-        const movie = await this.movieModel.findOne({ movieId }).exec();
+  public async findOne(movieId: number): Promise<MovieResponseDto> {
+    const movie = await this.movieModel.findOne({ movieId }).exec();
 
-        if (!movie) {
-            throw new NotFoundException(`Movie with ID ${movieId} not found`);
-        }
-
-        return this.mapToDto(movie);
+    if (!movie) {
+      throw new NotFoundException(`Movie with ID ${movieId} not found`);
     }
 
-    public async search(params: SearchMovieDto): Promise<MovieResponseDto[]> {
-        const { query, genre, limit = 20, offset = 0 } = params;
-        const filter: any = {};
+    return this.mapToDto(movie);
+  }
 
-        if (query) {
-            filter.title = { $regex: query, $options: 'i' };
-        }
+  public async search(params: SearchMovieDto): Promise<MovieResponseDto[]> {
+    const { query, genre, limit = 20, offset = 0 } = params;
+    const filter: any = {};
 
-        if (genre) {
-            filter.genres = genre;
-        }
-
-        const movies = await this.movieModel
-            .find(filter)
-            .skip(offset)
-            .limit(limit)
-            .exec();
-
-        return movies.map(this.mapToDto);
+    if (query) {
+      filter.title = { $regex: query, $options: 'i' };
     }
 
-    public async getGenres(): Promise<string[]> {
-        return this.movieModel.distinct('genres').exec();
+    if (genre) {
+      filter.genres = genre;
     }
 
-    private mapToDto(movie: MovieDocument): MovieResponseDto {
-        return {
-            movieId: movie.movieId,
-            title: movie.title,
-            genres: movie.genres,
-        };
-    }
+    const movies = await this.movieModel
+      .find(filter)
+      .skip(offset)
+      .limit(limit)
+      .exec();
+
+    return movies.map(this.mapToDto);
+  }
+
+  public async getGenres(): Promise<string[]> {
+    return this.movieModel.distinct('genres').exec();
+  }
+
+  private mapToDto(movie: MovieDocument): MovieResponseDto {
+    return {
+      movieId: movie.movieId,
+      title: movie.title,
+      genres: movie.genres,
+    };
+  }
 }
