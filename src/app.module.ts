@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ContentModule } from './content/content.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { MathModule } from './common/math/math.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
 
 @Module({
   imports: [
@@ -30,6 +31,8 @@ import { MathModule } from './common/math/math.module';
     RatingsModule,
 
     MathModule,
+
+    RecommendationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

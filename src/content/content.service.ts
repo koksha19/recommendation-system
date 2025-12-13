@@ -46,6 +46,22 @@ export class ContentService {
     return this.movieModel.distinct('genres').exec();
   }
 
+  public async findRecommendationsCandidates(
+    seenMovieIds: number[],
+    preferredGenres: string[],
+    limit: number = 500
+  ): Promise<MovieResponseDto[]> {
+    const candidates = await this.movieModel
+      .find({
+        movieId: { $nin: seenMovieIds },
+        genres: { $in: preferredGenres },
+      })
+      .limit(limit)
+      .exec();
+
+    return candidates.map(this.mapToDto);
+  }
+
   private mapToDto(movie: MovieDocument): MovieResponseDto {
     return {
       movieId: movie.movieId,
