@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -8,6 +9,7 @@ import { ContentModule } from './content/content.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { MathModule } from './common/math/math.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -15,7 +17,6 @@ import { RecommendationsModule } from './recommendations/recommendations.module'
       isGlobal: true,
       envFilePath: '.env',
     }),
-
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -23,16 +24,13 @@ import { RecommendationsModule } from './recommendations/recommendations.module'
       }),
       inject: [ConfigService],
     }),
-
+    RedisModule,
     UsersModule,
-
     ContentModule,
-
     RatingsModule,
-
     MathModule,
-
     RecommendationsModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,10 +1,13 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+
 import { RecommendationsService } from './recommendations.service';
 import { RecommendationResultDto } from './dto/recommendation.dto';
+import { RedisInterceptor } from '../redis/redis.interceptor';
 
 @ApiTags('Recommendations')
 @Controller('api/recommendations')
+@UseInterceptors(RedisInterceptor)
 export class RecommendationsController {
   constructor(private readonly recommendationsService: RecommendationsService) {}
 
