@@ -1,30 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 
-import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto, UserResponseDto } from './dto/create-user.dto';
+import { UsersRepository } from './users.repository';
+import { IUser } from '../common/interfaces/user.interface';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   public async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const lastUser = await this.userModel.findOne().sort({ userId: -1 }).exec();
+    const lastUser = await this.usersRepository.findLastUser();
     const newId = lastUser ? lastUser.userId + 1 : 1;
 
-    const newUser = new this.userModel({
-      userId: newId,
-      username: createUserDto.username,
-    });
-
-    const savedUser = await newUser.save();
+    const savedUser: IUser = await this.usersRepository.create(newId, createUserDto.username);
 
     return this.mapToDto(savedUser);
   }
 
   public async findOne(userId: number): Promise<UserResponseDto> {
-    const user = await this.userModel.findOne({ userId }).exec();
+    const user: IUser | null = await this.usersRepository.findOne(userId);
 
     if (!user) {
       throw new NotFoundException(`User #${userId} not found`);
@@ -33,12 +27,7 @@ export class UsersService {
     return this.mapToDto(user);
   }
 
-  public async exists(userId: number): Promise<boolean> {
-    const count = await this.userModel.countDocuments({ userId }).exec();
-    return count > 0;
-  }
-
-  private mapToDto(user: UserDocument): UserResponseDto {
+  private mapToDto(user: IUser): UserResponseDto {
     return {
       userId: user.userId,
       username: user.username,

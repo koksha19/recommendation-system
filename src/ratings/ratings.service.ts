@@ -1,40 +1,29 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Rating, RatingDocument } from './schemas/rating.schema';
+
 import { CreateRatingDto, RatingResponseDto } from './dto/ratings.dto';
+import { RatingsRepository } from './ratings.repository';
+import { IRating } from '../common/interfaces/rating.interface';
 
 @Injectable()
 export class RatingsService {
-  constructor(
-    @InjectModel(Rating.name) private ratingModel: Model<RatingDocument>,
-  ) {}
+  constructor(private readonly ratingsRepository: RatingsRepository) {}
 
-  public async setRating(createRatingDto: CreateRatingDto,): Promise<RatingResponseDto> {
+  public async setRating(createRatingDto: CreateRatingDto): Promise<RatingResponseDto> {
     const { userId, movieId, rating } = createRatingDto;
-    const timestamp = Math.floor(Date.now() / 1000);
 
-    const updatedRating = await this.ratingModel.findOneAndUpdate(
-      { userId, movieId },
-      { rating, timestamp },
-      { new: true, upsert: true }
-    ).exec();
+    const updatedRating: IRating = await this.ratingsRepository.upsert(userId, movieId, rating);
 
     return this.mapToDto(updatedRating);
   }
 
   public async getUserRatings(userId: number): Promise<RatingResponseDto[]> {
-    const ratings = await this.ratingModel.find({ userId }).exec();
-    return ratings.map(this.mapToDto);
-  }
+    const ratings: IRating[] = await this.ratingsRepository.findByUser(userId);
 
-  public async getMovieRatings(movieId: number): Promise<RatingResponseDto[]> {
-    const ratings = await this.ratingModel.find({ movieId }).exec();
     return ratings.map(this.mapToDto);
   }
 
   public async getAllRatingsGroupedByUser(): Promise<Map<number, Map<number, number>>> {
-    const allRatings = await this.ratingModel.find().select('userId movieId rating').exec();
+    const allRatings: IRating[] = await this.ratingsRepository.findAll();
 
     const userMap = new Map<number, Map<number, number>>();
 
@@ -49,7 +38,7 @@ export class RatingsService {
     return userMap;
   }
 
-  private mapToDto(rating: RatingDocument): RatingResponseDto {
+  private mapToDto(rating: IRating): RatingResponseDto {
     return {
       userId: rating.userId,
       movieId: rating.movieId,

@@ -27,7 +27,7 @@ export class RedisInterceptor implements NestInterceptor {
       const cachedResponse = await this.redisService.get(key);
 
       if (cachedResponse) {
-        this.logger.log(`dfServing from Cache: ${key}`);
+        this.logger.log(`Serving from Cache: ${key}`);
 
         return of(JSON.parse(cachedResponse));
       }
@@ -38,7 +38,7 @@ export class RedisInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (response: unknown) => {
         try {
-          this.logger.log(`💾 Caching result for: ${key}`);
+          this.logger.log(`Caching result for: ${key}`);
 
           await this.redisService.set(key, JSON.stringify(response), 60);
         } catch (err) {

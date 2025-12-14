@@ -1,104 +1,83 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ContentService } from '../content/content.service';
-import { RatingsService } from '../ratings/ratings.service';
+import { Injectable } from '@nestjs/common';
+
 import { MathService } from '../common/math/math.service';
 import { RecommendationResultDto } from './dto/recommendation.dto';
-import { MovieResponseDto } from '../content/dto/movie.dto';
+import { RatingsRepository } from '../ratings/ratings.repository';
+import { ContentRepository } from '../content/content.repository';
+import { IMovie } from '../common/interfaces/movie.interface';
+import { IRating } from '../common/interfaces/rating.interface';
+import { RatingsService } from '../ratings/ratings.service';
+
+const POSITIVE_RATE = 4.0;
 
 @Injectable()
 export class RecommendationsService {
-  private readonly logger = new Logger(RecommendationsService.name);
-
   constructor(
-    private readonly contentService: ContentService,
-    private readonly ratingsService: RatingsService,
+    private readonly ratingsRepository: RatingsRepository,
+    private readonly contentRepository: ContentRepository,
     private readonly mathService: MathService,
+    private readonly ratingsService: RatingsService,
   ) {}
 
   public async getContentBasedRecommendations(userId: number, limit: number = 10): Promise<RecommendationResultDto[]> {
-    const userRatings = await this.ratingsService.getUserRatings(userId);
+    const userRatings: IRating[] = await this.ratingsRepository.findByUser(userId);
 
     if (!userRatings.length) {
       return [];
     }
 
-    const seenMovieIds = userRatings.map((rating) => rating.movieId);
-    const likedRatings = userRatings.filter((rating) => rating.rating >= 4.0);
+    const seenIds = new Set(userRatings.map((rating) => rating.movieId));
+    const likedRatings: IRating[] = userRatings.filter((rating) => rating.rating >= POSITIVE_RATE);
 
-    if (likedRatings.length === 0) {
-      return [];
-    }
+    if (!likedRatings.length) return [];
 
-    const likedMovieIds = likedRatings.map((r) => r.movieId);
+    const likedMovies: IMovie[] = (await Promise.all(
+      likedRatings.map((rating) => this.contentRepository.findOne(rating.movieId))
+    )).filter((movie): movie is IMovie => movie !== null);
 
-    const likedMoviesData = await Promise.all(
-      likedMovieIds.map((id) => this.contentService.findOne(id))
+    const allGenres = await this.contentRepository.getGenres();
+
+    const userProfileVector = this.calculateUserProfileVector(likedMovies, allGenres);
+    const preferredGenres: string[] = Array.from(new Set(likedMovies.flatMap(movie => movie.genres)));
+
+    const candidates: IMovie[] = await this.contentRepository.findCandidates(
+      Array.from(seenIds),
+      preferredGenres,
+      500
     );
-
-    const userPreferredGenres = new Set<string>();
-    likedMoviesData.forEach((movie) => {
-      movie.genres.forEach((genre) => userPreferredGenres.add(genre));
-    });
-
-    const preferredGenresArray = Array.from(userPreferredGenres);
-
-    const allGenres = await this.contentService.getGenres();
-
-    const candidates = await this.contentService.findRecommendationsCandidates(
-      seenMovieIds,
-      preferredGenresArray,
-    );
-
-    this.logger.log(`Found ${candidates.length} candidates for user ${userId} via DB query`);
 
     const recommendations: RecommendationResultDto[] = [];
 
-    const likedVectors = likedMoviesData.map(movie => ({
-      movie,
-      vector: this.toOneHotVector(movie.genres, allGenres)
-    }));
-
     for (const candidate of candidates) {
       const candidateVector = this.toOneHotVector(candidate.genres, allGenres);
+      const similarity = this.mathService.cosineSimilarity(userProfileVector, candidateVector);
 
-      let maxSimilarity = 0;
-
-      for (const { vector: likedVector } of likedVectors) {
-        const similarity = this.mathService.cosineSimilarity(likedVector, candidateVector);
-
-        if (similarity && similarity > maxSimilarity) {
-          maxSimilarity = similarity;
-        }
-      }
-
-      if (maxSimilarity > 0.3) {
+      if (similarity && similarity > 0.2) {
         recommendations.push({
           movie: candidate,
-          score: maxSimilarity,
+          score: similarity,
           strategy: 'Content-Based',
         });
       }
     }
 
-    return recommendations
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    return recommendations.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
   public async getCollaborativeRecommendations(userId: number, limit: number = 10): Promise<RecommendationResultDto[]> {
     const allUsersRatings = await this.ratingsService.getAllRatingsGroupedByUser();
-
     const targetUserRatings = allUsersRatings.get(userId);
 
     if (!targetUserRatings) {
-      this.logger.warn(`User ${userId} has no ratings for Collaborative Filtering.`);
       return [];
     }
 
     const neighbors: { neighborId: number; similarity: number; ratings: Map<number, number> }[] = [];
 
     for (const [otherUserId, otherRatings] of allUsersRatings.entries()) {
-      if (otherUserId === userId) continue;
+      if (otherUserId === userId) {
+        continue;
+      }
 
       const similarity = this.calculateUserSimilarity(targetUserRatings, otherRatings);
 
@@ -126,18 +105,25 @@ export class RecommendationsService {
       }
     }
 
-    const recommendations: RecommendationResultDto[] = [];
-
     const topCandidateIds = Array.from(candidates.entries())
       .map(([movieId, data]) => ({ movieId, score: data.weightedSum / data.similaritySum }))
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map(c => c.movieId);
 
-    const moviesData = await Promise.all(topCandidateIds.map(id => this.contentService.findOne(id)));
+    const moviesData: IMovie[] = (await Promise.all(
+      topCandidateIds.map(id => this.contentRepository.findOne(id))
+    )).filter((movie): movie is IMovie => movie !== null);
+
+    const recommendations: RecommendationResultDto[] = [];
 
     for (const movie of moviesData) {
-      const data = candidates.get(movie.movieId)!;
+      const data = candidates.get(movie.movieId);
+
+      if (!data) {
+        continue;
+      }
+
       const predictedScore = data.weightedSum / data.similaritySum;
 
       recommendations.push({
@@ -156,7 +142,7 @@ export class RecommendationsService {
       this.getCollaborativeRecommendations(userId, 50),
     ]);
 
-    const hybridMap = new Map<number, { movie: MovieResponseDto; contentScore: number; collabScore: number }>();
+    const hybridMap = new Map<number, { movie: IMovie; contentScore: number; collabScore: number }>();
 
     for (const item of contentResults) {
       hybridMap.set(item.movie.movieId, {
@@ -196,6 +182,20 @@ export class RecommendationsService {
     return hybridResults
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
+  }
+
+  private calculateUserProfileVector(likedMovies: IMovie[], allGenres: string[]): number[] {
+    const vectorLength = allGenres.length;
+    const profileVector = new Array(vectorLength).fill(0);
+
+    for (const movie of likedMovies) {
+      const movieVector = this.toOneHotVector(movie.genres, allGenres);
+      for (let i = 0; i < vectorLength; i++) {
+        profileVector[i] += movieVector[i];
+      }
+    }
+
+    return profileVector.map(val => val / likedMovies.length);
   }
 
   private toOneHotVector(movieGenres: string[], allGenres: string[]): number[] {
