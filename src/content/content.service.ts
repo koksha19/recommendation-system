@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ContentRepository } from './content.repository';
 import { SearchMovieDto, MovieResponseDto } from './dto/movie.dto';
 import { IMovie } from '../common/interfaces/movie.interface';
+import { SEARCH_CONFIG } from '../common/constants/recommendation.constants';
 
 @Injectable()
 export class ContentService {
@@ -21,7 +22,12 @@ export class ContentService {
   }
 
   public async search(params: SearchMovieDto): Promise<MovieResponseDto[]> {
-    const { query, genre, limit = 20, offset = 0 } = params;
+    const {
+      query,
+      genre,
+      limit = SEARCH_CONFIG.DEFAULT_LIMIT,
+      offset = SEARCH_CONFIG.DEFAULT_OFFSET,
+    } = params;
 
     const filter: any = {};
 

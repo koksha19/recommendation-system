@@ -7,8 +7,7 @@ import { ContentRepository } from '../content/content.repository';
 import { IMovie } from '../common/interfaces/movie.interface';
 import { IRating } from '../common/interfaces/rating.interface';
 import { RatingsService } from '../ratings/ratings.service';
-
-const POSITIVE_RATE = 4.0;
+import { CONFIG } from '../common/constants/recommendation.constants';
 
 @Injectable()
 export class RecommendationsService {
@@ -19,7 +18,10 @@ export class RecommendationsService {
     private readonly ratingsService: RatingsService,
   ) {}
 
-  public async getContentBasedRecommendations(userId: number, limit: number = 10): Promise<RecommendationResultDto[]> {
+  public async getContentBasedRecommendations(
+    userId: number,
+    limit: number = CONFIG.DEFAULT_OUTPUT_LIMIT
+  ): Promise<RecommendationResultDto[]> {
     const userRatings: IRating[] = await this.ratingsRepository.findByUser(userId);
 
     if (!userRatings.length) {
@@ -27,7 +29,10 @@ export class RecommendationsService {
     }
 
     const seenIds = new Set(userRatings.map((rating) => rating.movieId));
-    const likedRatings: IRating[] = userRatings.filter((rating) => rating.rating >= POSITIVE_RATE);
+
+    const likedRatings: IRating[] = userRatings.filter(
+      (rating) => rating.rating >= CONFIG.POSITIVE_RATING_THRESHOLD
+    );
 
     if (!likedRatings.length) return [];
 
@@ -36,14 +41,13 @@ export class RecommendationsService {
     )).filter((movie): movie is IMovie => movie !== null);
 
     const allGenres = await this.contentRepository.getGenres();
-
     const userProfileVector = this.calculateUserProfileVector(likedMovies, allGenres);
     const preferredGenres: string[] = Array.from(new Set(likedMovies.flatMap(movie => movie.genres)));
 
     const candidates: IMovie[] = await this.contentRepository.findCandidates(
       Array.from(seenIds),
       preferredGenres,
-      500
+      CONFIG.CONTENT_CANDIDATE_LIMIT
     );
 
     const recommendations: RecommendationResultDto[] = [];
@@ -52,7 +56,7 @@ export class RecommendationsService {
       const candidateVector = this.toOneHotVector(candidate.genres, allGenres);
       const similarity = this.mathService.cosineSimilarity(userProfileVector, candidateVector);
 
-      if (similarity && similarity > 0.2) {
+      if (similarity && similarity > CONFIG.MIN_SIMILARITY_SCORE) {
         recommendations.push({
           movie: candidate,
           score: similarity,
@@ -64,7 +68,10 @@ export class RecommendationsService {
     return recommendations.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
-  public async getCollaborativeRecommendations(userId: number, limit: number = 10): Promise<RecommendationResultDto[]> {
+  public async getCollaborativeRecommendations(
+    userId: number,
+    limit: number = CONFIG.DEFAULT_OUTPUT_LIMIT
+  ): Promise<RecommendationResultDto[]> {
     const allUsersRatings = await this.ratingsService.getAllRatingsGroupedByUser();
     const targetUserRatings = allUsersRatings.get(userId);
 
@@ -81,12 +88,12 @@ export class RecommendationsService {
 
       const similarity = this.calculateUserSimilarity(targetUserRatings, otherRatings);
 
-      if (similarity > 0.1) {
+      if (similarity > CONFIG.MIN_SIMILARITY_SCORE) {
         neighbors.push({ neighborId: otherUserId, similarity, ratings: otherRatings });
       }
     }
 
-    neighbors.sort((a, b) => b.similarity - a.similarity).splice(30);
+    neighbors.sort((a, b) => b.similarity - a.similarity).splice(CONFIG.NEIGHBOR_LIMIT);
 
     const candidates = new Map<number, { weightedSum: number; similaritySum: number }>();
     const seenMovies = new Set(targetUserRatings.keys());
@@ -107,6 +114,7 @@ export class RecommendationsService {
 
     const topCandidateIds = Array.from(candidates.entries())
       .map(([movieId, data]) => ({ movieId, score: data.weightedSum / data.similaritySum }))
+      .filter(candidate => candidate.score >= CONFIG.MIN_PREDICTED_SCORE)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map(c => c.movieId);
@@ -136,10 +144,14 @@ export class RecommendationsService {
     return recommendations.sort((a, b) => b.score - a.score);
   }
 
-  public async getHybridRecommendations(userId: number, limit: number = 10, alpha: number = 0.6): Promise<RecommendationResultDto[]> {
+  public async getHybridRecommendations(
+    userId: number,
+    limit: number = CONFIG.DEFAULT_OUTPUT_LIMIT,
+    alpha: number = CONFIG.HYBRID_WEIGHT_ALPHA
+  ): Promise<RecommendationResultDto[]> {
     const [contentResults, collabResults] = await Promise.all([
-      this.getContentBasedRecommendations(userId, 50),
-      this.getCollaborativeRecommendations(userId, 50),
+      this.getContentBasedRecommendations(userId, CONFIG.HYBRID_MERGE_LIMIT),
+      this.getCollaborativeRecommendations(userId, CONFIG.HYBRID_MERGE_LIMIT),
     ]);
 
     const hybridMap = new Map<number, { movie: IMovie; contentScore: number; collabScore: number }>();
@@ -154,7 +166,7 @@ export class RecommendationsService {
 
     for (const item of collabResults) {
       const movieId = item.movie.movieId;
-      const normalizedCollabScore = item.score / 5.0;
+      const normalizedCollabScore = item.score / 5.0; // Нормалізація 1..5 -> 0..1
 
       if (hybridMap.has(movieId)) {
         hybridMap.get(movieId)!.collabScore = normalizedCollabScore;
