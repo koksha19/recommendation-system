@@ -21,4 +21,18 @@ export class RecommendationsController {
   ): Promise<RecommendationResultDto[]> {
     return this.recommendationsService.getContentBasedRecommendations(userId);
   }
+
+  @Get('collaborative/:userId')
+  @ApiOperation({
+    summary: 'Get recommendations collaboratively',
+  })
+  @ApiResponse({
+    status: 200,
+    type: [RecommendationResultDto]
+  })
+  async getCollaborative(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<RecommendationResultDto[]> {
+    return this.recommendationsService.getCollaborativeRecommendations(userId);
+  }
 }

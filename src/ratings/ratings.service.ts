@@ -10,7 +10,7 @@ export class RatingsService {
     @InjectModel(Rating.name) private ratingModel: Model<RatingDocument>,
   ) {}
 
-  async setRating(createRatingDto: CreateRatingDto,): Promise<RatingResponseDto> {
+  public async setRating(createRatingDto: CreateRatingDto,): Promise<RatingResponseDto> {
     const { userId, movieId, rating } = createRatingDto;
     const timestamp = Math.floor(Date.now() / 1000);
 
@@ -23,14 +23,30 @@ export class RatingsService {
     return this.mapToDto(updatedRating);
   }
 
-  async getUserRatings(userId: number): Promise<RatingResponseDto[]> {
+  public async getUserRatings(userId: number): Promise<RatingResponseDto[]> {
     const ratings = await this.ratingModel.find({ userId }).exec();
     return ratings.map(this.mapToDto);
   }
 
-  async getMovieRatings(movieId: number): Promise<RatingResponseDto[]> {
+  public async getMovieRatings(movieId: number): Promise<RatingResponseDto[]> {
     const ratings = await this.ratingModel.find({ movieId }).exec();
     return ratings.map(this.mapToDto);
+  }
+
+  public async getAllRatingsGroupedByUser(): Promise<Map<number, Map<number, number>>> {
+    const allRatings = await this.ratingModel.find().select('userId movieId rating').exec();
+
+    const userMap = new Map<number, Map<number, number>>();
+
+    for (const rating of allRatings) {
+      if (!userMap.has(rating.userId)) {
+        userMap.set(rating.userId, new Map());
+      }
+
+      userMap.get(rating.userId)!.set(rating.movieId, rating.rating);
+    }
+
+    return userMap;
   }
 
   private mapToDto(rating: RatingDocument): RatingResponseDto {
