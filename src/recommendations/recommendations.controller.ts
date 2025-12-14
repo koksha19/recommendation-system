@@ -35,4 +35,18 @@ export class RecommendationsController {
   ): Promise<RecommendationResultDto[]> {
     return this.recommendationsService.getCollaborativeRecommendations(userId);
   }
+
+  @Get('hybrid/:userId')
+  @ApiOperation({
+    summary: 'Get hybrid recommendations',
+  })
+  @ApiResponse({
+    status: 200,
+    type: [RecommendationResultDto]
+  })
+  async getHybrid(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<RecommendationResultDto[]> {
+    return this.recommendationsService.getHybridRecommendations(userId);
+  }
 }

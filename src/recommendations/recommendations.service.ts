@@ -3,6 +3,7 @@ import { ContentService } from '../content/content.service';
 import { RatingsService } from '../ratings/ratings.service';
 import { MathService } from '../common/math/math.service';
 import { RecommendationResultDto } from './dto/recommendation.dto';
+import { MovieResponseDto } from '../content/dto/movie.dto';
 
 @Injectable()
 export class RecommendationsService {
@@ -147,6 +148,54 @@ export class RecommendationsService {
     }
 
     return recommendations.sort((a, b) => b.score - a.score);
+  }
+
+  public async getHybridRecommendations(userId: number, limit: number = 10, alpha: number = 0.6): Promise<RecommendationResultDto[]> {
+    const [contentResults, collabResults] = await Promise.all([
+      this.getContentBasedRecommendations(userId, 50),
+      this.getCollaborativeRecommendations(userId, 50),
+    ]);
+
+    const hybridMap = new Map<number, { movie: MovieResponseDto; contentScore: number; collabScore: number }>();
+
+    for (const item of contentResults) {
+      hybridMap.set(item.movie.movieId, {
+        movie: item.movie,
+        contentScore: item.score,
+        collabScore: 0,
+      });
+    }
+
+    for (const item of collabResults) {
+      const movieId = item.movie.movieId;
+      const normalizedCollabScore = item.score / 5.0;
+
+      if (hybridMap.has(movieId)) {
+        hybridMap.get(movieId)!.collabScore = normalizedCollabScore;
+      } else {
+        hybridMap.set(movieId, {
+          movie: item.movie,
+          contentScore: 0,
+          collabScore: normalizedCollabScore,
+        });
+      }
+    }
+
+    const hybridResults: RecommendationResultDto[] = [];
+
+    for (const item of hybridMap.values()) {
+      const finalScore = (alpha * item.contentScore) + ((1 - alpha) * item.collabScore);
+
+      hybridResults.push({
+        movie: item.movie,
+        score: finalScore,
+        strategy: 'Hybrid',
+      });
+    }
+
+    return hybridResults
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
   }
 
   private toOneHotVector(movieGenres: string[], allGenres: string[]): number[] {
