@@ -28,7 +28,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   public onModuleDestroy() {
-    this.client.disconnect();
+    this.client?.disconnect();
   }
 
   public async get(key: string): Promise<string | null> {

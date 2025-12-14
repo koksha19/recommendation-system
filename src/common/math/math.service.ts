@@ -7,7 +7,7 @@ export class MathService {
     const magB = this.magnitude(vecB);
 
     if (magA === 0 || magB === 0) {
-      return null;
+      return 0;
     }
 
     const dot = this.dotProduct(vecA, vecB);

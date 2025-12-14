@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ContentService } from './content.service';
 import { SearchMovieDto, MovieResponseDto } from './dto/movie.dto';
 
@@ -14,7 +14,7 @@ export class ContentController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Список знайдених фільмів',
+    description: 'List of movies by name or genre',
     type: [MovieResponseDto],
   })
   async search(@Query() query: SearchMovieDto): Promise<MovieResponseDto[]> {
@@ -27,7 +27,7 @@ export class ContentController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Список жанрів',
+    description: 'List of genres',
     type: [String],
   })
   async getGenres(): Promise<string[]> {
@@ -36,16 +36,16 @@ export class ContentController {
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Get film by if=d',
+    summary: 'Get film by id',
   })
   @ApiResponse({
     status: 200,
-    description: 'Деталі фільму',
+    description: 'Movie details',
     type: MovieResponseDto,
   })
   @ApiResponse({
     status: 404,
-    description: 'Фільм не знайдено',
+    description: 'Film not found',
   })
   async getById(
     @Param('id', ParseIntPipe) id: number,

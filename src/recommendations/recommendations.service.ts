@@ -38,7 +38,7 @@ export class RecommendationsService {
 
     const likedMovies: IMovie[] = (await Promise.all(
       likedRatings.map((rating) => this.contentRepository.findOne(rating.movieId))
-    )).filter((movie): movie is IMovie => movie !== null);
+    )).filter((movie): movie is IMovie => !!movie);
 
     const allGenres = await this.contentRepository.getGenres();
     const userProfileVector = this.calculateUserProfileVector(likedMovies, allGenres);
@@ -121,7 +121,7 @@ export class RecommendationsService {
 
     const moviesData: IMovie[] = (await Promise.all(
       topCandidateIds.map(id => this.contentRepository.findOne(id))
-    )).filter((movie): movie is IMovie => movie !== null);
+    )).filter((movie): movie is IMovie => !!movie);
 
     const recommendations: RecommendationResultDto[] = [];
 
@@ -225,7 +225,7 @@ export class RecommendationsService {
       }
     }
 
-    if (commonMovieIds.length === 0) return 0;
+    if (commonMovieIds.length < CONFIG.MINIMAL_COMMON_MOVIES) return 0;
 
     const vecA = commonMovieIds.map(id => userA.get(id)!);
     const vecB = commonMovieIds.map(id => userB.get(id)!);

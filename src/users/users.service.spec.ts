@@ -1,33 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { UsersService } from './users.service';
-import { User, UserDocument } from './schemas/user.schema';
+import { UsersRepository } from './users.repository';
+import { NotFoundException } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let model: Model<UserDocument>;
+  let repository: any;
+
+  const mockUser = { userId: 1, username: 'test_user' };
 
   beforeEach(async () => {
+    const mockUsersRepository = {
+      create: jest.fn().mockResolvedValue(mockUser),
+      findOne: jest.fn().mockResolvedValue(mockUser),
+      findLastUser: jest.fn().mockResolvedValue(mockUser),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        {
-          provide: getModelToken(User.name),
-          useValue: class MockUserModel {
-            constructor(private data: Partial<User>) {
-              Object.assign(this, data);
-            }
-            save = jest.fn().mockResolvedValue({ userId: 2, username: 'Test' });
-            static findOne = jest.fn();
-            static countDocuments = jest.fn();
-          },
-        },
+        { provide: UsersRepository, useValue: mockUsersRepository }, // <--- ВИКОРИСТОВУЄМО REPO
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    model = module.get<Model<UserDocument>>(getModelToken(User.name));
+    repository = module.get(UsersRepository);
   });
 
   it('should be defined', () => {
@@ -36,18 +33,22 @@ describe('UsersService', () => {
 
   describe('create', () => {
     it('should create a new user', async () => {
-      const execMock = jest.fn().mockResolvedValue(null);
-      const sortMock = jest.fn().mockReturnValue({ exec: execMock });
+      const dto = { username: 'new_user' };
+      const result = await service.create(dto);
+      expect(result).toEqual(mockUser);
+      expect(repository.create).toHaveBeenCalled();
+    });
+  });
 
-      jest.spyOn(model, 'findOne').mockReturnValue({
-        sort: sortMock,
-      } as any);
+  describe('findOne', () => {
+    it('should return a user if found', async () => {
+      const result = await service.findOne(1);
+      expect(result).toEqual(mockUser);
+    });
 
-      const result = await service.create({ username: 'Neo' });
-
-      expect(result).toEqual({ userId: 2, username: 'Test' });
-
-      expect(model.findOne).toHaveBeenCalled();
+    it('should throw NotFoundException if not found', async () => {
+      repository.findOne.mockResolvedValue(null);
+      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
     });
   });
 });
