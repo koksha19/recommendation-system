@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, QueryFilter } from 'mongoose';
 import { Movie, MovieDocument } from './schemas/movie.schema';
 import { IMovie } from '../common/interfaces/movie.interface';
 
@@ -10,6 +10,15 @@ export class ContentRepository {
 
   public findOne(movieId: number): Promise<IMovie | null> {
     return this.movieModel.findOne({ movieId }).lean().exec();
+  }
+
+  public search(filter: QueryFilter<MovieDocument>, limit: number, offset: number): Promise<IMovie[]> {
+    return this.movieModel
+      .find(filter)
+      .skip(offset)
+      .limit(limit)
+      .lean()
+      .exec();
   }
 
   public getGenres(): Promise<string[]> {
