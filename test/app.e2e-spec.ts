@@ -15,7 +15,7 @@ describe('Full System E2E', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-  }, 60000);
+  });
 
   afterAll(async () => {
     await app.close();
@@ -97,7 +97,7 @@ describe('Full System E2E', () => {
     await request(app.getHttpServer())
       .get(`/api/recommendations/hybrid/${createdUserId}`)
       .expect(200);
-  });
+  }, 30000);
 
   it('should explain a recommendation', async () => {
     await request(app.getHttpServer())

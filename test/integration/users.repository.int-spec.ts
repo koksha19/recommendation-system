@@ -38,32 +38,67 @@ describe('UsersRepository (Integration)', () => {
     await userModel.deleteMany({});
   });
 
-  it('should create a user and retrieve it', async () => {
-    const created = await repository.create(1, 'testuser');
-    expect(created.userId).toBe(1);
-    expect(created.username).toBe('testuser');
+  describe('create & findOne', () => {
+    it('should create a user and retrieve it exactly', async () => {
+      const created = await repository.create(1, 'neo');
 
-    const found = await repository.findOne(1);
-    expect(found).toBeDefined();
-    expect(found?.username).toBe('testuser');
+      expect(created.userId).toBe(1);
+      expect(created.username).toBe('neo');
+      expect(created).toHaveProperty('_id');
+
+      const found = await repository.findOne(1);
+      expect(found).toBeDefined();
+      expect(found?.username).toBe('neo');
+    });
+
+    it('should return null if user does not exist', async () => {
+      const found = await repository.findOne(999);
+      expect(found).toBeNull();
+    });
+
+    it('should return lean object (performance check)', async () => {
+      await repository.create(10, 'lean_user');
+      const found = await repository.findOne(10);
+
+      expect(found).not.toHaveProperty('save');
+    });
+
+    it('should prevent duplicate userIds (Schema Constraint)', async () => {
+      await repository.create(1, 'Original');
+
+      try {
+        await repository.create(1, 'Duplicate');
+        fail('Should have thrown duplicate key error');
+      } catch (e) {
+        expect(e.code).toBe(11000);
+      }
+    });
   });
 
-  it('should find the last user correctly (for auto-increment)', async () => {
-    await repository.create(1, 'user1');
-    await repository.create(5, 'user5');
-    await repository.create(2, 'user2');
+  describe('findLastUser', () => {
+    it('should return null if database is empty (Cold Start)', async () => {
+      const last = await repository.findLastUser();
+      expect(last).toBeNull();
+    });
 
-    const last = await repository.findLastUser();
-    expect(last?.userId).toBe(5);
-  });
+    it('should return the user with highest ID, regardless of insertion order', async () => {
+      await repository.create(10, 'User 10');
+      await repository.create(50, 'User 50');
+      await repository.create(5, 'User 5');
 
-  it('should prevent duplicates if schema enforces it (Schema Test)', async () => {
-    await repository.create(1, 'A');
-    try {
-      await repository.create(1, 'B');
-      fail('Should have thrown error');
-    } catch (e) {
-      expect(e.code).toBe(11000);
-    }
+      const last = await repository.findLastUser();
+
+      expect(last).toBeDefined();
+      expect(last?.userId).toBe(50);
+      expect(last?.username).toBe('User 50');
+    });
+
+    it('should handle gaps in IDs correctly', async () => {
+      await repository.create(1, 'A');
+      await repository.create(100, 'Z');
+
+      const last = await repository.findLastUser();
+      expect(last?.userId).toBe(100);
+    });
   });
 });

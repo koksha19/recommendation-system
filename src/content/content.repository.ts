@@ -15,6 +15,7 @@ export class ContentRepository {
   public search(filter: QueryFilter<MovieDocument>, limit: number, offset: number): Promise<IMovie[]> {
     return this.movieModel
       .find(filter)
+      .sort({ movieId: 1 })
       .skip(offset)
       .limit(limit)
       .lean()
