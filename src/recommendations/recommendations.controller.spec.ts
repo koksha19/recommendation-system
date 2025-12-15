@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RecommendationsController } from './recommendations.controller';
 import { RecommendationsService } from './recommendations.service';
 import { RedisInterceptor } from '../redis/redis.interceptor';
+import { RecommendationExplainService } from './explain/recommendation-explain.service';
 
 describe('RecommendationsController', () => {
   let controller: RecommendationsController;
@@ -14,6 +15,10 @@ describe('RecommendationsController', () => {
       getHybridRecommendations: jest.fn().mockResolvedValue([]),
     };
 
+    const mockExplainService = {
+      explain: jest.fn().mockResolvedValue({}),
+    };
+
     const mockRedisInterceptor = {
       intercept: jest.fn((next) => next.handle()),
     };
@@ -22,6 +27,7 @@ describe('RecommendationsController', () => {
       controllers: [RecommendationsController],
       providers: [
         { provide: RecommendationsService, useValue: mockRecommendationsService },
+        { provide: RecommendationExplainService, useValue: mockExplainService },
       ],
     })
       .overrideInterceptor(RedisInterceptor)

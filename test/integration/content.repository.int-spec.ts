@@ -12,7 +12,6 @@ describe('ContentRepository (Integration)', () => {
   let movieModel: Model<Movie>;
 
   beforeAll(async () => {
-    // Піднімаємо "віртуальну" MongoDB в пам'яті
     mongod = await MongoMemoryServer.create();
     const uri = mongod.getUri();
     mongoConnection = (await connect(uri)).connection;
@@ -40,22 +39,19 @@ describe('ContentRepository (Integration)', () => {
   });
 
   it('should find candidates excluding seen movies', async () => {
-    // 1. Insert Test Data
     await movieModel.create([
       { movieId: 1, title: 'Seen Movie', genres: ['Action'] },
       { movieId: 2, title: 'Unseen Action', genres: ['Action'] },
       { movieId: 3, title: 'Unseen Comedy', genres: ['Comedy'] },
     ]);
 
-    // 2. Call Repository
     const seenIds = [1];
     const preferredGenres = ['Action'];
 
     const result = await repository.findCandidates(seenIds, preferredGenres, 10);
 
-    // 3. Assert
     expect(result).toHaveLength(1);
-    expect(result[0].movieId).toBe(2); // Має знайти тільки 2, бо 1 бачили, а 3 не підходить по жанру
+    expect(result[0].movieId).toBe(2);
   });
 
   it('search should filter by title regex', async () => {
@@ -67,6 +63,6 @@ describe('ContentRepository (Integration)', () => {
 
     const result = await repository.search({ title: { $regex: 'Star', $options: 'i' } }, 10, 0);
 
-    expect(result).toHaveLength(2); // Star Wars & Star Trek
+    expect(result).toHaveLength(2);
   });
 });

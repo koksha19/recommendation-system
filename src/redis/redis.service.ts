@@ -36,10 +36,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   public async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-    if (ttlSeconds) {
-      await this.client.set(key, value, 'EX', ttlSeconds);
-    } else {
-      await this.client.set(key, value);
+    try {
+      if (this.client.status !== 'ready') return;
+
+      if (ttlSeconds) {
+        await this.client.set(key, value, 'EX', ttlSeconds);
+      } else {
+        await this.client.set(key, value);
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to set cache key ${key}: ${e.message}`);
     }
   }
 

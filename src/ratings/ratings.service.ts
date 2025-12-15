@@ -38,6 +38,22 @@ export class RatingsService {
     return userMap;
   }
 
+  public async getAllRatingsGroupedByMovie(): Promise<Map<number, number[]>> {
+    const allRatings: IRating[] = await this.ratingsRepository.findAll();
+
+    const movieMap = new Map<number, number[]>();
+
+    for (const rating of allRatings) {
+      if (!movieMap.has(rating.movieId)) {
+        movieMap.set(rating.movieId, []);
+      }
+
+      movieMap.get(rating.movieId)!.push(rating.rating);
+    }
+
+    return movieMap;
+  }
+
   private mapToDto(rating: IRating): RatingResponseDto {
     return {
       userId: rating.userId,

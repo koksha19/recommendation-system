@@ -50,21 +50,20 @@ describe('UsersRepository (Integration)', () => {
 
   it('should find the last user correctly (for auto-increment)', async () => {
     await repository.create(1, 'user1');
-    await repository.create(5, 'user5'); // Gap in IDs
+    await repository.create(5, 'user5');
     await repository.create(2, 'user2');
 
     const last = await repository.findLastUser();
-    expect(last?.userId).toBe(5); // Should find max ID, not last inserted
+    expect(last?.userId).toBe(5);
   });
 
   it('should prevent duplicates if schema enforces it (Schema Test)', async () => {
-    // Assuming schema has unique index on userId
     await repository.create(1, 'A');
     try {
       await repository.create(1, 'B');
       fail('Should have thrown error');
     } catch (e) {
-      expect(e.code).toBe(11000); // Duplicate key error code
+      expect(e.code).toBe(11000);
     }
   });
 });

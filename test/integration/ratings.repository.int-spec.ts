@@ -35,13 +35,11 @@ describe('RatingsRepository (Integration)', () => {
   });
 
   it('should upsert ratings: Insert then Update', async () => {
-    // 1. Insert
     const r1 = await repository.upsert(1, 100, 3);
     expect(r1.rating).toBe(3);
     const countAfterInsert = await connection.collection('ratings').countDocuments();
     expect(countAfterInsert).toBe(1);
 
-    // 2. Update same user/movie
     const r2 = await repository.upsert(1, 100, 5);
     expect(r2.rating).toBe(5);
     const countAfterUpdate = await connection.collection('ratings').countDocuments();
@@ -54,6 +52,6 @@ describe('RatingsRepository (Integration)', () => {
 
     const all = await repository.findAll();
     expect(all).toHaveLength(2);
-    expect(all[0]).not.toHaveProperty('save'); // Ensure it's a POJO (lean)
+    expect(all[0]).not.toHaveProperty('save');
   });
 });

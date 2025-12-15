@@ -4,12 +4,16 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RecommendationsService } from './recommendations.service';
 import { RecommendationResultDto } from './dto/recommendation.dto';
 import { RedisInterceptor } from '../redis/redis.interceptor';
+import { RecommendationExplainService } from './explain/recommendation-explain.service';
 
 @ApiTags('Recommendations')
 @Controller('api/recommendations')
 @UseInterceptors(RedisInterceptor)
 export class RecommendationsController {
-  constructor(private readonly recommendationsService: RecommendationsService) {}
+  constructor(
+    private readonly recommendationsService: RecommendationsService,
+    private readonly explainService: RecommendationExplainService,
+  ) {}
 
   @Get('content-based/:userId')
   @ApiOperation({
@@ -51,5 +55,13 @@ export class RecommendationsController {
     @Param('userId', ParseIntPipe) userId: number,
   ): Promise<RecommendationResultDto[]> {
     return this.recommendationsService.getHybridRecommendations(userId);
+  }
+
+  @Get('explain/:userId/:movieId')
+  async explain(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('movieId', ParseIntPipe) movieId: number,
+  ) {
+    return this.explainService.explain(userId, movieId);
   }
 }
