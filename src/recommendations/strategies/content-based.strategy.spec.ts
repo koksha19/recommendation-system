@@ -159,4 +159,16 @@ describe('ContentBasedStrategy', () => {
     expect(res[0].movie.movieId).toBe(20);
     expect(res[0].score).toBeCloseTo(1.0); // (0.5+0.5) dot (1+1) normalized
   });
+
+  it('Scenario: User hates everything', async () => {
+    const badRatings = Array.from({ length: 10 }, (_, i) =>
+      createRating(1, i, 1)
+    );
+
+    ratingsRepo.findByUser.mockResolvedValue(badRatings);
+
+    const res = await strategy.recommend(1);
+
+    expect(res).toEqual([]);
+  });
 });

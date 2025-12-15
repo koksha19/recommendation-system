@@ -95,4 +95,18 @@ describe('RatingsService', () => {
       expect(end - start).toBeLessThan(500);
     });
   });
+
+  describe('getAllRatingsGroupedByMovie', () => {
+    it('should group ratings by movie id', async () => {
+      repository.findAll.mockResolvedValue([
+        { userId: 1, movieId: 10, rating: 5 },
+        { userId: 2, movieId: 10, rating: 3 },
+        { userId: 3, movieId: 20, rating: 4 },
+      ]);
+
+      const map = await service.getAllRatingsGroupedByMovie();
+      expect(map.get(10)).toEqual([5, 3]);
+      expect(map.get(20)).toEqual([4]);
+    });
+  });
 });

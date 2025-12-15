@@ -83,4 +83,22 @@ describe('RecommendationOrchestrator', () => {
 
     expect(res[0].score).toBeCloseTo(0.7);
   });
+
+  it('Scenario: сontent loves it but friends hate it', async () => {
+    const movie = { movieId: 666 };
+
+    contentStrategy.recommend.mockResolvedValue([
+      { movie, score: 1.0, strategy: 'Content-Based' }
+    ]);
+
+    collabStrategy.recommend.mockResolvedValue([
+      { movie, score: 1.0, strategy: 'Collaborative-Filtering' }
+    ]);
+
+    popularityStrategy.recommend.mockResolvedValue([]);
+
+    const res = await orchestrator.hybrid(1, 10, 0.5);
+
+    expect(res[0].score).toBeCloseTo(0.6);
+  });
 });

@@ -59,6 +59,19 @@ describe('MathService', () => {
       expect(service.cosineSimilarity([], [])).toBe(0);
     });
 
+    it('should handle negative numbers mixed with positives', () => {
+      const res = service.cosineSimilarity([1, -2], [1, 2]);
+      expect(res).toBeCloseTo(-0.6);
+    });
+
+    it('should handle large sparse vectors', () => {
+      const vecA = new Array(100).fill(0);
+      vecA[0] = 1;
+      const vecB = new Array(100).fill(0);
+      vecB[99] = 1;
+      expect(service.cosineSimilarity(vecA, vecB)).toBe(0);
+    });
+
     it('should calculate correctly for large vectors', () => {
       const vecA = new Array(1000).fill(1);
       const vecB = new Array(1000).fill(0.5);
@@ -82,6 +95,16 @@ describe('MathService', () => {
       it(`Scenario #${index}: should calculate similarity for ${JSON.stringify(a)} and ${JSON.stringify(b)}`, () => {
         expect(service.cosineSimilarity(a, b)).toBeCloseTo(expected, 4);
       });
+    });
+
+    it('Scenario: "Genre Salad" vs "Purist"', () => {
+      const userVec = [1, 0, 0, 0, 0];
+
+      const movieVec = [1, 1, 1, 1, 1];
+
+      const similarity = service.cosineSimilarity(userVec, movieVec);
+
+      expect(similarity).toBeCloseTo(0.447, 3);
     });
   });
 });

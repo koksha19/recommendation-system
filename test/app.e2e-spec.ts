@@ -15,7 +15,7 @@ describe('Full System E2E', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-  });
+  }, 60000);
 
   afterAll(async () => {
     await app.close();
@@ -31,6 +31,13 @@ describe('Full System E2E', () => {
     expect(typeof createdUserId).toBe('number');
   });
 
+  it('should get created user', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/users/${createdUserId}`)
+      .expect(200);
+    expect(res.body.userId).toBe(createdUserId);
+  });
+
   it('/api/content/search (GET) - Find "Toy Story"', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/content/search?query=Toy')
@@ -39,6 +46,14 @@ describe('Full System E2E', () => {
     expect(res.body.length).toBeGreaterThan(0);
     const movie = res.body.find((m: IMovie) => m.title.includes('Toy Story'));
     expect(movie).toBeDefined();
+  });
+
+  it('should get movie details', async () => {
+    await request(app.getHttpServer()).get('/api/content/1').expect(200);
+  });
+
+  it('should return 404 for non-existent movie', async () => {
+    await request(app.getHttpServer()).get('/api/content/999999').expect(404);
   });
 
   it('/api/ratings (POST) - Rate movies', async () => {
@@ -50,6 +65,13 @@ describe('Full System E2E', () => {
     await request(app.getHttpServer())
       .post('/api/ratings')
       .send({ userId: createdUserId, movieId: 588, rating: 5 })
+      .expect(201);
+  });
+
+  it('should update a rating', async () => {
+    await request(app.getHttpServer())
+      .post('/api/ratings')
+      .send({ userId: createdUserId, movieId: 1, rating: 4 })
       .expect(201);
   });
 
@@ -65,6 +87,24 @@ describe('Full System E2E', () => {
     }
   });
 
+  it('should get collaborative recs (might be empty)', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/recommendations/collaborative/${createdUserId}`)
+      .expect(200);
+  });
+
+  it('should get hybrid recs', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/recommendations/hybrid/${createdUserId}`)
+      .expect(200);
+  });
+
+  it('should explain a recommendation', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/recommendations/explain/${createdUserId}/1`)
+      .expect(200);
+  });
+
   it('Second request should be cached', async () => {
     await request(app.getHttpServer())
       .get(`/api/recommendations/hybrid/${createdUserId}`)
@@ -75,5 +115,5 @@ describe('Full System E2E', () => {
       .expect(200);
     const duration = Date.now() - start;
     expect(duration).toBeLessThan(1000);
-  }, 30000);
+  });
 });

@@ -102,6 +102,17 @@ describe('ContentService', () => {
       );
     });
 
+    it('should map results to DTOs', async () => {
+      repository.search.mockResolvedValue([
+        createMockMovie(1, 'Matrix', ['Sci-Fi']),
+        createMockMovie(2, 'Test', ['Comedy', 'Drama']),
+      ]);
+
+      const res = await service.search({});
+      expect(res).toHaveLength(2);
+      expect(res[0].movieId).toBe(1);
+    });
+
     it('should respect custom limit and offset', async () => {
       repository.search.mockResolvedValue([]);
       await service.search({ limit: 100, offset: 50 });

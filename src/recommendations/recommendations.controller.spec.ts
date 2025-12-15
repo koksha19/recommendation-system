@@ -7,12 +7,13 @@ import { RecommendationExplainService } from './explain/recommendation-explain.s
 describe('RecommendationsController', () => {
   let controller: RecommendationsController;
   let service: any;
+  let explainService: any;
 
   beforeEach(async () => {
     const mockRecommendationsService = {
-      getContentBasedRecommendations: jest.fn().mockResolvedValue([]),
-      getCollaborativeRecommendations: jest.fn().mockResolvedValue([]),
-      getHybridRecommendations: jest.fn().mockResolvedValue([]),
+      getContentBasedRecommendations: jest.fn().mockResolvedValue(['Content']),
+      getCollaborativeRecommendations: jest.fn().mockResolvedValue(['Collab']),
+      getHybridRecommendations: jest.fn().mockResolvedValue(['Hybrid']),
     };
 
     const mockExplainService = {
@@ -36,6 +37,7 @@ describe('RecommendationsController', () => {
 
     controller = module.get<RecommendationsController>(RecommendationsController);
     service = module.get(RecommendationsService);
+    explainService = module.get(RecommendationExplainService);
   });
 
   it('should be defined', () => {
@@ -45,5 +47,20 @@ describe('RecommendationsController', () => {
   it('should call getContentBasedRecommendations', async () => {
     await controller.getContentBased(1);
     expect(service.getContentBasedRecommendations).toHaveBeenCalledWith(1);
+  });
+
+  it('getCollaborative should call service with userId', async () => {
+    await controller.getCollaborative(456);
+    expect(service.getCollaborativeRecommendations).toHaveBeenCalledWith(456);
+  });
+
+  it('getHybrid should call service with userId', async () => {
+    await controller.getHybrid(789);
+    expect(service.getHybridRecommendations).toHaveBeenCalledWith(789);
+  });
+
+  it('explainService should call explainService service', async () => {
+    await controller.explain(1, 100);
+    expect(explainService.explain).toHaveBeenCalledWith(1, 100);
   });
 });

@@ -95,4 +95,34 @@ describe('CollaborativeStrategy', () => {
     const res = await strategy.recommend(1);
     expect(res).toEqual([]);
   });
+
+  it('Scenario: Neighbor is identical to User', async () => {
+    const me = new Map([[10, 5], [11, 5]]);
+    const clone = new Map([[10, 5], [11, 5]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, me],
+      [2, clone]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(1.0);
+
+    const res = await strategy.recommend(1);
+
+    expect(res).toEqual([]);
+  });
+
+  it('Scenario: Shared popularity is not taste', async () => {
+    // Both like very popular movie
+    const me = new Map([[999, 5]]);
+    const stranger = new Map([[999, 5], [123, 5]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, me],
+      [2, stranger]
+    ]));
+
+    const res = await strategy.recommend(1);
+    expect(res).toEqual([]);
+  });
 });
