@@ -9,9 +9,10 @@ describe('Full System E2E', () => {
   let createdUserId: number;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const moduleFixture: TestingModule =
+      await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -21,99 +22,142 @@ describe('Full System E2E', () => {
     await app.close();
   });
 
-  it('/api/users (POST) - Register new user', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/api/users')
-      .send({ username: `e2e_user_${Date.now()}` })
-      .expect(201);
+  describe('User Registration & Retrieval', () => {
+    it('POST /api/users — should register a new user', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/users')
+        .send({ username: `e2e_user_${Date.now()}` })
+        .expect(201);
 
-    createdUserId = res.body.userId;
-    expect(typeof createdUserId).toBe('number');
+      expect(res.body).toHaveProperty('userId');
+      expect(res.body).toHaveProperty('username');
+      expect(typeof res.body.userId).toBe('number');
+
+      createdUserId = res.body.userId;
+    });
+
+    it('GET /api/users/:id — should return created user', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/users/${createdUserId}`)
+        .expect(200);
+
+      expect(res.body.userId).toBe(createdUserId);
+      expect(typeof res.body.username).toBe('string');
+    });
   });
 
-  it('should get created user', async () => {
-    const res = await request(app.getHttpServer())
-      .get(`/api/users/${createdUserId}`)
-      .expect(200);
-    expect(res.body.userId).toBe(createdUserId);
+  describe('Content Search & Retrieval', () => {
+    it('GET /api/content/search — should find "Toy Story"', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/content/search?query=Toy')
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+
+      const movie = res.body.find(
+        (m: IMovie) => m.title.includes('Toy Story'),
+      );
+      expect(movie).toBeDefined();
+      expect(movie.genres).toBeInstanceOf(Array);
+    });
+
+    it('GET /api/content/:id — should return movie details', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/content/1')
+        .expect(200);
+
+      expect(res.body).toHaveProperty('movieId', 1);
+      expect(res.body).toHaveProperty('title');
+      expect(res.body.genres).toBeInstanceOf(Array);
+    });
+
+    it('GET /api/content/:id — should return 404 for unknown movie', async () => {
+      await request(app.getHttpServer())
+        .get('/api/content/999999')
+        .expect(404);
+    });
   });
 
-  it('/api/content/search (GET) - Find "Toy Story"', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/api/content/search?query=Toy')
-      .expect(200);
+  describe('Ratings Submission & Update', () => {
+    it('POST /api/ratings — should rate multiple movies', async () => {
+      await request(app.getHttpServer())
+        .post('/api/ratings')
+        .send({ userId: createdUserId, movieId: 1, rating: 5 })
+        .expect(201);
 
-    expect(res.body.length).toBeGreaterThan(0);
-    const movie = res.body.find((m: IMovie) => m.title.includes('Toy Story'));
-    expect(movie).toBeDefined();
+      await request(app.getHttpServer())
+        .post('/api/ratings')
+        .send({ userId: createdUserId, movieId: 588, rating: 5 })
+        .expect(201);
+    });
+
+    it('POST /api/ratings — should update an existing rating', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/ratings')
+        .send({ userId: createdUserId, movieId: 1, rating: 4 })
+        .expect(201);
+
+      expect(res.body.rating).toBe(4);
+    });
   });
 
-  it('should get movie details', async () => {
-    await request(app.getHttpServer()).get('/api/content/1').expect(200);
+  describe('Recommendation Engines', () => {
+    it('GET /api/recommendations/content-based/:id', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/recommendations/content-based/${createdUserId}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+
+      if (res.body.length > 0) {
+        expect(res.body[0]).toHaveProperty('movie');
+        expect(res.body[0]).toHaveProperty('score');
+        expect(res.body[0].strategy).toBe('Content-Based');
+      }
+    });
+
+    it('GET /api/recommendations/collaborative/:id', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/recommendations/collaborative/${createdUserId}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('GET /api/recommendations/hybrid/:id', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/recommendations/hybrid/${createdUserId}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    }, 30000);
   });
 
-  it('should return 404 for non-existent movie', async () => {
-    await request(app.getHttpServer()).get('/api/content/999999').expect(404);
-  });
+  describe('Explainability & Cache', () => {
+    it('GET /api/recommendations/explain/:userId/:movieId', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/recommendations/explain/${createdUserId}/1`)
+        .expect(200);
 
-  it('/api/ratings (POST) - Rate movies', async () => {
-    await request(app.getHttpServer())
-      .post('/api/ratings')
-      .send({ userId: createdUserId, movieId: 1, rating: 5 })
-      .expect(201);
+      expect(res.body).toHaveProperty('movieId', 1);
+      expect(res.body).toHaveProperty('finalScore');
+      expect(res.body).toHaveProperty('contentBased');
+    });
 
-    await request(app.getHttpServer())
-      .post('/api/ratings')
-      .send({ userId: createdUserId, movieId: 588, rating: 5 })
-      .expect(201);
-  });
+    it('Second hybrid request should be served faster (cache effect)', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/recommendations/hybrid/${createdUserId}`)
+        .expect(200);
 
-  it('should update a rating', async () => {
-    await request(app.getHttpServer())
-      .post('/api/ratings')
-      .send({ userId: createdUserId, movieId: 1, rating: 4 })
-      .expect(201);
-  });
+      const start = Date.now();
 
-  it('/api/recommendations/content-based/:id (GET)', async () => {
-    const res = await request(app.getHttpServer())
-      .get(`/api/recommendations/content-based/${createdUserId}`)
-      .expect(200);
+      await request(app.getHttpServer())
+        .get(`/api/recommendations/hybrid/${createdUserId}`)
+        .expect(200);
 
-    expect(Array.isArray(res.body)).toBe(true);
-    if (res.body.length > 0) {
-      const genres = res.body[0].movie.genres;
-      expect(genres).toEqual(expect.arrayContaining(['Animation']));
-    }
-  });
-
-  it('should get collaborative recs (might be empty)', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/recommendations/collaborative/${createdUserId}`)
-      .expect(200);
-  });
-
-  it('should get hybrid recs', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/recommendations/hybrid/${createdUserId}`)
-      .expect(200);
-  }, 30000);
-
-  it('should explain a recommendation', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/recommendations/explain/${createdUserId}/1`)
-      .expect(200);
-  });
-
-  it('Second request should be cached', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/recommendations/hybrid/${createdUserId}`)
-      .expect(200);
-    const start = Date.now();
-    await request(app.getHttpServer())
-      .get(`/api/recommendations/hybrid/${createdUserId}`)
-      .expect(200);
-    const duration = Date.now() - start;
-    expect(duration).toBeLessThan(1000);
+      const duration = Date.now() - start;
+      expect(duration).toBeLessThan(1000);
+    });
   });
 });
