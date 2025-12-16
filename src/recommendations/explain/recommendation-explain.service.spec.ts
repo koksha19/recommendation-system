@@ -78,4 +78,37 @@ describe('RecommendationExplainService', () => {
     expect(res.collaborative).toBeNull();
     expect(res.finalScore).toBeCloseTo(0.7 * CONFIG.HYBRID_WEIGHT_ALPHA);
   });
+
+  it('should explain collaborative-only recommendation', async () => {
+    contentBased.recommend.mockResolvedValue([]);
+
+    collaborative.recommend.mockResolvedValue([
+      {
+        movie: createMovie(1, []),
+        score: 4,
+        strategy: 'Collaborative-Filtering',
+      },
+    ]);
+
+    const res = await explainService.explain(1, 1);
+
+    expect(res.contentBased).toBeNull();
+    expect(res.collaborative).toBeDefined();
+
+    const expected =
+      (4 / 5) * (1 - CONFIG.HYBRID_WEIGHT_ALPHA);
+
+    expect(res.finalScore).toBeCloseTo(expected);
+  });
+
+  it('should return zero explanation if movie not recommended by any strategy', async () => {
+    contentBased.recommend.mockResolvedValue([]);
+    collaborative.recommend.mockResolvedValue([]);
+
+    const res = await explainService.explain(1, 999);
+
+    expect(res.finalScore).toBe(0);
+    expect(res.contentBased).toBeNull();
+    expect(res.collaborative).toBeNull();
+  });
 });
