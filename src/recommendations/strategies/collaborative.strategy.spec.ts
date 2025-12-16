@@ -33,6 +33,129 @@ describe('CollaborativeStrategy', () => {
     expect(res).toEqual([]);
   });
 
+  it('should ignore neighbors with similarity below threshold', async () => {
+    const target = new Map([[1, 5], [2, 5]]);
+    const weakNeighbor = new Map([[1, 5], [2, 5], [3, 5]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, weakNeighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(0.1); // < MIN_SIMILARITY_SCORE
+
+    const res = await strategy.recommend(1);
+    expect(res).toEqual([]);
+  });
+
+  it('should treat null similarity as zero', async () => {
+    const target = new Map([[1, 5], [2, 5]]);
+    const neighbor = new Map([[1, 5], [2, 5], [3, 5]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, neighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(null);
+
+    const res = await strategy.recommend(1);
+    expect(res).toEqual([]);
+  });
+
+  it('should include candidate with predicted score exactly at threshold', async () => {
+    const target = new Map([[10, 3], [11, 3]]);
+    const neighbor = new Map([[10, 3], [11, 3], [99, 3]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, neighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(1.0);
+    contentRepo.findOne.mockResolvedValue({ movieId: 99 });
+
+    const res = await strategy.recommend(1);
+    expect(res).toHaveLength(1);
+    expect(res[0].score).toBe(3);
+  });
+
+  it('should exclude candidate with predicted score below threshold', async () => {
+    const target = new Map([[10, 3], [11, 3]]);
+    const neighbor = new Map([[10, 3], [11, 3], [99, 2]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, neighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(1.0);
+
+    const res = await strategy.recommend(1);
+    expect(res).toEqual([]);
+  });
+
+  it('should skip candidate if movie not found', async () => {
+    const target = new Map([[1, 5], [2, 5]]);
+    const neighbor = new Map([[1, 5], [2, 5], [999, 5]]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, neighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(1.0);
+    contentRepo.findOne.mockResolvedValue(null);
+
+    const res = await strategy.recommend(1);
+    expect(res).toEqual([]);
+  });
+
+  it('should sort recommendations by predicted score desc', async () => {
+    const target = new Map([[1, 5], [2, 5]]);
+    const neighbor = new Map([
+      [1, 5],
+      [2, 5],
+      [10, 5],
+      [11, 4]
+    ]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, neighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(1.0);
+    contentRepo.findOne.mockImplementation((id) => ({ movieId: id }));
+
+    const res = await strategy.recommend(1);
+
+    expect(res[0].movie.movieId).toBe(10);
+    expect(res[1].movie.movieId).toBe(11);
+  });
+
+  it('should respect output limit', async () => {
+    const target = new Map([[1, 5], [2, 5]]);
+    const neighbor = new Map([
+      [1, 5],
+      [2, 5],
+      [10, 5],
+      [11, 5],
+      [12, 5],
+    ]);
+
+    ratingsService.getAllRatingsGroupedByUser.mockResolvedValue(new Map([
+      [1, target],
+      [2, neighbor]
+    ]));
+
+    mathService.cosineSimilarity.mockReturnValue(1.0);
+    contentRepo.findOne.mockImplementation((id) => ({ movieId: id }));
+
+    const res = await strategy.recommend(1, 2);
+    expect(res).toHaveLength(2);
+  });
+
   it('Scenario: "The Twin" (Perfect correlation)', async () => {
     // Target User (1): Likes [100, 101]
     // Neighbor (2): Likes [100, 101, 102]
