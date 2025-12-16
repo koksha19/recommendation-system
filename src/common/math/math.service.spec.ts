@@ -55,7 +55,7 @@ describe('MathService', () => {
       );
     });
 
-    it('should handle empty vectors by throwing error', () => {
+    it('should return 0 for empty vectors', () => {
       expect(service.cosineSimilarity([], [])).toBe(0);
     });
 
@@ -97,6 +97,53 @@ describe('MathService', () => {
       });
     });
 
+    it('should be symmetric: sim(a,b) === sim(b,a)', () => {
+      const a = [1, 2, 3];
+      const b = [4, 5, 6];
+
+      const ab = service.cosineSimilarity(a, b);
+      const ba = service.cosineSimilarity(b, a);
+
+      expect(ab).toBeCloseTo(ba!);
+    });
+
+    it('should be scale-invariant', () => {
+      const a = [1, 2, 3];
+      const b = [2, 4, 6];
+
+      const scaledA = a.map(v => v * 10);
+      const scaledB = b.map(v => v * 0.1);
+
+      const original = service.cosineSimilarity(a, b);
+      const scaled = service.cosineSimilarity(scaledA, scaledB);
+
+      expect(scaled).toBeCloseTo(original!);
+    });
+
+    it('should always return value between -1 and 1', () => {
+      const randomVec = () =>
+        Array.from({ length: 20 }, () => Math.random() * 20 - 10);
+
+      for (let i = 0; i < 50; i++) {
+        const sim = service.cosineSimilarity(
+          randomVec(),
+          randomVec(),
+        );
+
+        expect(sim).toBeGreaterThanOrEqual(-1);
+        expect(sim).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('should be stable under small noise', () => {
+      const base = [1, 1, 1, 1, 1];
+      const noisy = base.map(v => v + Math.random() * 0.001);
+
+      const sim = service.cosineSimilarity(base, noisy);
+
+      expect(sim).toBeGreaterThan(0.999);
+    });
+
     it('Scenario: "Genre Salad" vs "Purist"', () => {
       const userVec = [1, 0, 0, 0, 0];
 
@@ -105,6 +152,59 @@ describe('MathService', () => {
       const similarity = service.cosineSimilarity(userVec, movieVec);
 
       expect(similarity).toBeCloseTo(0.447, 3);
+    });
+  });
+
+  describe('magnitude', () => {
+    it('should return 0 for zero vector', () => {
+      expect(service.magnitude([0, 0, 0])).toBe(0);
+    });
+
+    it('should ignore sign of values', () => {
+      expect(service.magnitude([3, -4])).toBe(5);
+    });
+
+    it('should scale linearly', () => {
+      const vec = [3, 4];
+      const scaled = vec.map(v => v * 3);
+
+      expect(service.magnitude(scaled)).toBeCloseTo(
+        service.magnitude(vec) * 3,
+      );
+    });
+
+    it('should handle very large numbers', () => {
+      const vec = [1e150, 1e150];
+      expect(service.magnitude(vec)).toBeGreaterThan(0);
+    });
+  });
+
+  describe('dotProduct', () => {
+    it('should return correct dot product', () => {
+      expect(service.dotProduct([1, 2, 3], [4, 5, 6])).toBe(32);
+    });
+
+    it('should be commutative', () => {
+      const a = [1, 2, 3];
+      const b = [4, 5, 6];
+
+      expect(service.dotProduct(a, b)).toBe(
+        service.dotProduct(b, a),
+      );
+    });
+
+    it('should return 0 for orthogonal vectors', () => {
+      expect(service.dotProduct([1, 0], [0, 1])).toBe(0);
+    });
+
+    it('should throw if vector lengths differ', () => {
+      expect(() =>
+        service.dotProduct([1, 2], [1]),
+      ).toThrow();
+    });
+
+    it('should work with negative values', () => {
+      expect(service.dotProduct([1, -2], [-3, 4])).toBe(-11);
     });
   });
 });
