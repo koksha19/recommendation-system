@@ -3,6 +3,7 @@ import { ContentBasedStrategy } from './content-based.strategy';
 import { RatingsRepository } from '../../ratings/ratings.repository';
 import { ContentRepository } from '../../content/content.repository';
 import { MathService } from '../../common/math/math.service';
+import { CONFIG } from '../../common/constants/recommendation.constants';
 
 const createRating = (userId: number, movieId: number, rating: number) => ({
   userId, movieId, rating, timestamp: 123
@@ -41,6 +42,28 @@ describe('ContentBasedStrategy', () => {
     }).compile();
 
     strategy = module.get<ContentBasedStrategy>(ContentBasedStrategy);
+  });
+
+  it('should return empty if user has no ratings at all', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([]);
+
+    const res = await strategy.recommend(1);
+
+    expect(res).toEqual([]);
+    expect(contentRepo.findCandidates).not.toHaveBeenCalled();
+  });
+
+  it('should ignore liked movies that are missing in content repository', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([
+      createRating(1, 10, 5),
+    ]);
+
+    contentRepo.findOne.mockResolvedValue(null);
+    contentRepo.findCandidates.mockResolvedValue([]);
+
+    const res = await strategy.recommend(1);
+
+    expect(res).toEqual([]);
   });
 
   it('should ignore movies with similarity below MIN_SIMILARITY_SCORE', async () => {
@@ -170,5 +193,122 @@ describe('ContentBasedStrategy', () => {
     const res = await strategy.recommend(1);
 
     expect(res).toEqual([]);
+  });
+
+  it('should correctly average genre weights across liked movies', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([
+      createRating(1, 10, 5),
+      createRating(1, 11, 5),
+      createRating(1, 12, 5),
+    ]);
+
+    contentRepo.findOne.mockImplementation((id) => {
+      if (id === 10) return createMovie(10, ['Action']);
+      if (id === 11) return createMovie(11, ['Action']);
+      if (id === 12) return createMovie(12, ['Comedy']);
+    });
+
+    contentRepo.findCandidates.mockResolvedValue([
+      createMovie(20, ['Action']),
+    ]);
+
+    await strategy.recommend(1);
+
+    // User vector should be: Action=2/3, Comedy=1/3
+    const userVector = [2 / 3, 1 / 3, 0];
+    expect(mathService.cosineSimilarity).toHaveBeenCalledWith(
+      userVector,
+      expect.any(Array)
+    );
+  });
+
+  it('should pass preferred genres to findCandidates', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([
+      createRating(1, 10, 5),
+      createRating(1, 11, 5),
+    ]);
+
+    contentRepo.findOne.mockImplementation((id) =>
+      id === 10
+        ? createMovie(10, ['Action'])
+        : createMovie(11, ['Comedy'])
+    );
+
+    contentRepo.findCandidates.mockResolvedValue([]);
+
+    await strategy.recommend(1);
+
+    expect(contentRepo.findCandidates).toHaveBeenCalledWith(
+      expect.any(Array),               // seenMovieIds
+      ['Action', 'Comedy'],            // preferredGenres
+      expect.any(Number),
+    );
+  });
+
+  it('should include movie if similarity equals MIN_SIMILARITY_SCORE', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([
+      createRating(1, 10, 5),
+    ]);
+
+    contentRepo.findOne.mockResolvedValue(
+      createMovie(10, ['Action'])
+    );
+
+    contentRepo.findCandidates.mockResolvedValue([
+      createMovie(20, ['Action']),
+    ]);
+
+    mathService.cosineSimilarity.mockReturnValue(
+      CONFIG.MIN_SIMILARITY_SCORE
+    );
+
+    const res = await strategy.recommend(1);
+
+    expect(res).toHaveLength(1);
+  });
+
+  it('should sort recommendations by score descending', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([
+      createRating(1, 10, 5),
+    ]);
+
+    contentRepo.findOne.mockResolvedValue(
+      createMovie(10, ['Action'])
+    );
+
+    contentRepo.findCandidates.mockResolvedValue([
+      createMovie(20, ['Action']),
+      createMovie(21, ['Action']),
+    ]);
+
+    mathService.cosineSimilarity
+      .mockReturnValueOnce(0.3)
+      .mockReturnValueOnce(0.9);
+
+    const res = await strategy.recommend(1);
+
+    expect(res[0].score).toBeGreaterThan(res[1].score);
+  });
+
+  it('should respect limit parameter', async () => {
+    ratingsRepo.findByUser.mockResolvedValue([
+      createRating(1, 10, 5),
+    ]);
+
+    contentRepo.findOne.mockResolvedValue(
+      createMovie(10, ['Action'])
+    );
+
+    contentRepo.findCandidates.mockResolvedValue([
+      createMovie(20, ['Action']),
+      createMovie(21, ['Action']),
+      createMovie(22, ['Action']),
+    ]);
+
+    mathService.cosineSimilarity.mockReturnValue(1);
+
+    const res = await strategy.recommend(1, 1);
+
+    expect(res).toHaveLength(1);
   });
 });
