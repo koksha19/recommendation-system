@@ -14,8 +14,7 @@ import { RedisModule } from './redis/redis.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
+      isGlobal: true
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -24,7 +23,6 @@ import { RedisModule } from './redis/redis.module';
       }),
       inject: [ConfigService],
     }),
-    RedisModule,
     UsersModule,
     ContentModule,
     RatingsModule,
