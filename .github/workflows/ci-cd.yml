@@ -98,8 +98,8 @@ jobs:
           key: ${{ secrets.DEV_SSH_KEY }}
           script: |
             cd ~/lab5
-            docker-compose pull
-            docker-compose up -d --force-recreate --build
+            docker compose pull
+            docker compose up -d --force-recreate --build
 
   deploy_prod:
     runs-on: ubuntu-latest
@@ -127,5 +127,5 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
             cd ~/lab5
-            docker-compose pull
-            docker-compose up -d --force-recreate --build
+            docker compose pull
+            docker compose up -d --force-recreate --build
