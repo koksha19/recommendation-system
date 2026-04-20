@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  api:
+    image: levbereza/recommendation-system:latest
+    container_name: rec_api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - rec_network
+    environment:
+      - MONGO_URI=mongodb://root:rootpassword@mongo:27017/recommendation_db?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
   mongo:
     image: mongo:6.0
     container_name: rec_mongo
