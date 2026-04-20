@@ -12,7 +12,7 @@ services:
     networks:
       - rec_network
     environment:
-      - DATABASE_CONNECTION=mongodb://root:rootpassword@mongo:27017/recommendation_db?authSource=admin
+      - MONGO_URI=mongodb://root:rootpassword@mongo:27017/recommendation_db?authSource=admin
       - REDIS_HOST=redis
       - REDIS_PORT=6379
 
