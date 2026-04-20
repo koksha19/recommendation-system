@@ -13,4 +13,8 @@ export class AppService {
   getTest(): string {
     return 'Hello test!';
   }
+
+  getTest2(): string {
+    return 'Hello test2!';
+  }
 }
